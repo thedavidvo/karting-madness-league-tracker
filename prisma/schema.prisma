@@ -1,0 +1,92 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum LeagueType {
+  JUNIORS
+  ADULT_AMATEUR
+  ADULT_PRO
+}
+
+model LeagueYear {
+  id      String   @id @default(cuid())
+  label   Int      @unique
+  seasons Season[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Season {
+  id       String @id @default(cuid())
+  yearId   String
+  number   Int
+  name     String
+  rounds   Round[]
+  year     LeagueYear @relation(fields: [yearId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([yearId, number])
+}
+
+model Round {
+  id           String   @id @default(cuid())
+  seasonId     String
+  roundNumber  Int
+  weekStarting DateTime?
+  notes        String?
+  season       Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  results      Result[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([seasonId, roundNumber])
+}
+
+model Driver {
+  id        String   @id @default(cuid())
+  name      String
+  joinedAt  DateTime @default(now())
+  active    Boolean  @default(true)
+  results   Result[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name])
+}
+
+model Result {
+  id           String     @id @default(cuid())
+  roundId       String
+  driverId      String
+  leagueType    LeagueType
+  position      Int
+  fastestLapMs  Int?
+  pointsEarned  Int
+  flatTimes     Int       @default(0)
+  bestLapBonus  Boolean   @default(false)
+
+  round         Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  driver        Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roundId, driverId, leagueType])
+  @@index([roundId, leagueType])
+  @@index([driverId, leagueType])
+}
