@@ -18,6 +18,12 @@ enum LeagueType {
   ADULT_PRO
 }
 
+enum RaceDay {
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+}
+
 model LeagueYear {
   id      String   @id @default(cuid())
   label   Int      @unique
@@ -74,6 +80,7 @@ model Result {
   roundId       String
   driverId      String
   leagueType    LeagueType
+  raceDay       RaceDay    @default(TUESDAY)
   position      Int
   fastestLapMs  Int?
   pointsEarned  Int
@@ -86,7 +93,7 @@ model Result {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([roundId, driverId, leagueType])
-  @@index([roundId, leagueType])
+  @@unique([roundId, driverId, leagueType, raceDay])
+  @@index([roundId, leagueType, raceDay])
   @@index([driverId, leagueType])
 }

@@ -1,8 +1,12 @@
+import Image from "next/image";
 import Link from "next/link";
 
-import { createLeagueYear } from "@/app/actions";
-import { LeagueType } from "@/generated/prisma/enums";
+import { deleteRound } from "@/app/actions";
+import AddRoundDialog from "@/components/add-round-dialog";
+import LeagueControlsPanel from "@/components/league-controls-panel";
+import { LeagueType, RaceDay } from "@/generated/prisma/enums";
 import { getDashboardData } from "@/lib/league";
+import { formatMs, totalPoints } from "@/lib/scoring";
 
 type HomeProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -22,13 +26,40 @@ const LEAGUE_LABELS: Record<LeagueType, string> = {
   [LeagueType.ADULT_PRO]: "Adults - Pro",
 };
 
+const DAY_LABELS: Record<RaceDay, string> = {
+  [RaceDay.TUESDAY]: "Tuesday",
+  [RaceDay.WEDNESDAY]: "Wednesday",
+  [RaceDay.THURSDAY]: "Thursday",
+};
+
 export default async function Home({ searchParams }: HomeProps) {
   const resolved = (await searchParams) ?? {};
   const data = await getDashboardData({
     year: getValue(resolved.year),
     season: getValue(resolved.season),
     league: getValue(resolved.league),
+    day: getValue(resolved.day),
+    round: getValue(resolved.round),
   });
+
+  const baseQuery = new URLSearchParams();
+
+  if (data.selectedYear) {
+    baseQuery.set("year", String(data.selectedYear.label));
+  }
+
+  if (data.selectedSeason) {
+    baseQuery.set("season", data.selectedSeason.id);
+  }
+
+  baseQuery.set("league", data.selectedLeague);
+  baseQuery.set("day", data.selectedDay);
+
+  const roundHref = (roundId: string) => {
+    const params = new URLSearchParams(baseQuery);
+    params.set("round", roundId);
+    return `/?${params.toString()}`;
+  };
 
   return (
     <main className="container">
@@ -42,66 +73,128 @@ export default async function Home({ searchParams }: HomeProps) {
       <div className="dashboard-shell">
         <aside className="sidebar stack-sm">
           <section className="hero card">
-            <p className="eyebrow">Kart Madness League Tracker</p>
+            <Link href="/" className="hero-logo-link" aria-label="Go to dashboard">
+              <Image src="/Karting-Madness.png" alt="Kart Madness" width={200} height={58} priority />
+            </Link>
+            <p className="eyebrow">Karting Madness League Tracker</p>
             <h1>Season Dashboard</h1>
-            <p className="muted">
-              Track every Tuesday, Wednesday and Thursday race across all rounds, with automatic best-lap bonus and flat-time bonus points.
-            </p>
           </section>
 
-          <section className="card stack-sm">
-            <form action="/" method="get" className="stack-sm">
-              <h2>View Standings</h2>
-              <label>
-                Year
-                <select name="year" defaultValue={data.selectedYear ? String(data.selectedYear.label) : ""}>
-                  {data.years.map((year) => (
-                    <option value={year.label} key={year.id}>
-                      {year.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Season
-                <select name="season" defaultValue={data.selectedSeason?.id ?? ""}>
-                  {data.seasons.map((season) => (
-                    <option value={season.id} key={season.id}>
-                      {season.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                League
-                <select name="league" defaultValue={data.selectedLeague}>
-                  {Object.values(LeagueType).map((league) => (
-                    <option value={league} key={league}>
-                      {LEAGUE_LABELS[league]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="submit">Switch</button>
-            </form>
-          </section>
-
-          <section className="card stack-sm">
-            <form action={createLeagueYear} className="stack-sm">
-              <h2>Create Year</h2>
-              <label>
-                Year Label
-                <input name="year" type="number" min={2020} max={2100} defaultValue={new Date().getFullYear()} required />
-              </label>
-              <button type="submit">Add Year + 4 Seasons</button>
-              <p className="small muted">Each year is auto-created with Season 1 to Season 4.</p>
-            </form>
-          </section>
+          <LeagueControlsPanel
+            years={data.years.map((year) => ({ id: year.id, label: year.label }))}
+            seasons={data.seasons.map((season) => ({ id: season.id, name: season.name }))}
+            selectedYear={data.selectedYear ? String(data.selectedYear.label) : ""}
+            selectedSeason={data.selectedSeason?.id ?? ""}
+            selectedYearId={data.selectedYear?.id}
+            selectedYearLabel={data.selectedYear ? String(data.selectedYear.label) : undefined}
+            selectedLeague={data.selectedLeague}
+            selectedDay={data.selectedDay}
+            leagueOptions={Object.values(LeagueType).map((league) => ({ value: league, label: LEAGUE_LABELS[league] }))}
+            dayOptions={Object.values(RaceDay).map((day) => ({ value: day, label: DAY_LABELS[day] }))}
+          />
         </aside>
 
         <section className="dashboard-content stack-sm">
           {data.selectedSeason ? (
             <>
+              <section className="card stack-sm">
+                <div className="rounds-header">
+                  <h2>Rounds</h2>
+                  <AddRoundDialog seasonId={data.selectedSeason.id} />
+                </div>
+
+                <div className="round-grid">
+                  {data.rounds.length === 0 ? (
+                    <p className="muted">No rounds yet. Create one to start entering race results.</p>
+                  ) : (
+                    data.rounds.map((round) => (
+                      <article className={`round-item${data.selectedRound?.id === round.id ? " is-selected" : ""}`} key={round.id}>
+                        <Link className="round-card-link" href={roundHref(round.id)}>
+                          <div>
+                            <h3>Round {round.roundNumber}</h3>
+                            <p className="small muted">{round.weekStarting ? round.weekStarting.toDateString() : "No date set"}</p>
+                          </div>
+                          <span className="small round-card-meta">
+                            {round.results.length} result{round.results.length === 1 ? "" : "s"}
+                          </span>
+                        </Link>
+
+                        <div className="split-links">
+                          <Link className="small-button" href={`/rounds/${round.id}/edit?league=${data.selectedLeague}&day=${data.selectedDay}`}>
+                            Edit
+                          </Link>
+                          <form action={deleteRound}>
+                            <input type="hidden" name="roundId" value={round.id} />
+                            <button type="submit" className="small-button danger-button">
+                              Delete
+                            </button>
+                          </form>
+                        </div>
+                      </article>
+                    ))
+                  )}
+                </div>
+              </section>
+
+              {data.selectedRound ? (
+                <section className="card stack-sm">
+                  <div className="actions-row">
+                    <div>
+                      <p className="eyebrow">Selected Round</p>
+                      <h2>Round {data.selectedRound.roundNumber} Results</h2>
+                      <p className="small muted">
+                        {data.selectedRound.weekStarting ? data.selectedRound.weekStarting.toDateString() : "No week start date provided"}
+                      </p>
+                      <p className="small muted">
+                        {LEAGUE_LABELS[data.selectedLeague]} - {DAY_LABELS[data.selectedDay]}
+                      </p>
+                    </div>
+                    <Link className="small-button" href={`/rounds/${data.selectedRound.id}/edit?league=${data.selectedLeague}&day=${data.selectedDay}`}>
+                      Edit Round
+                    </Link>
+                  </div>
+
+                  {data.selectedRound.notes ? <p>{data.selectedRound.notes}</p> : null}
+
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Position</th>
+                          <th>Driver</th>
+                          <th>Base Pts</th>
+                          <th>Flat Times</th>
+                          <th>Best Lap Bonus</th>
+                          <th>Total Pts</th>
+                          <th>Fastest Lap</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.selectedRound.results.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="muted">
+                              No results entered for this league/day.
+                            </td>
+                          </tr>
+                        ) : (
+                          data.selectedRound.results.map((result) => (
+                            <tr key={result.id}>
+                              <td>{result.position}</td>
+                              <td>{result.driver.name}</td>
+                              <td>{result.pointsEarned}</td>
+                              <td>{result.flatTimes}</td>
+                              <td>{result.bestLapBonus ? "+1" : "-"}</td>
+                              <td className="strong">{totalPoints(result.pointsEarned, result.flatTimes, result.bestLapBonus)}</td>
+                              <td>{formatMs(result.fastestLapMs)}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ) : null}
+
               <section className="card stack-sm">
                 <div className="actions-row">
                   <div>
@@ -110,12 +203,6 @@ export default async function Home({ searchParams }: HomeProps) {
                     </h2>
                     <p className="small muted">Round-by-round points ladder for {LEAGUE_LABELS[data.selectedLeague]}.</p>
                   </div>
-                  <Link
-                    className="button-link"
-                    href={`/rounds/new?seasonId=${data.selectedSeason.id}&league=${data.selectedLeague}`}
-                  >
-                    Add Round
-                  </Link>
                 </div>
 
                 <div className="table-wrap">
@@ -126,7 +213,7 @@ export default async function Home({ searchParams }: HomeProps) {
                         <th>Driver</th>
                         {data.rounds.map((round) => (
                           <th key={round.id}>
-                            <Link href={`/rounds/${round.id}`}>R{round.roundNumber}</Link>
+                            <Link href={roundHref(round.id)}>R{round.roundNumber}</Link>
                           </th>
                         ))}
                         <th>Total</th>
@@ -146,6 +233,7 @@ export default async function Home({ searchParams }: HomeProps) {
                             <td>{row.name}</td>
                             {data.rounds.map((round) => {
                               const cell = row.perRound[round.id];
+
                               return (
                                 <td key={round.id}>
                                   {cell ? (
@@ -162,28 +250,6 @@ export default async function Home({ searchParams }: HomeProps) {
                       )}
                     </tbody>
                   </table>
-                </div>
-              </section>
-
-              <section className="card stack-sm">
-                <h2>Rounds</h2>
-                <div className="round-grid">
-                  {data.rounds.length === 0 ? (
-                    <p className="muted">No rounds yet. Create one to start entering race results.</p>
-                  ) : (
-                    data.rounds.map((round) => (
-                      <article className="round-item" key={round.id}>
-                        <div>
-                          <h3>Round {round.roundNumber}</h3>
-                          <p className="small muted">{round.weekStarting ? round.weekStarting.toDateString() : "No date set"}</p>
-                        </div>
-                        <div className="split-links">
-                          <Link href={`/rounds/${round.id}`}>View</Link>
-                          <Link href={`/rounds/${round.id}/edit?league=${data.selectedLeague}`}>Edit</Link>
-                        </div>
-                      </article>
-                    ))
-                  )}
                 </div>
               </section>
             </>

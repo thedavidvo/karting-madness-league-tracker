@@ -1,4 +1,4 @@
-# Kart Madness League Tracker
+# Karting Madness League Tracker
 
 Next.js application for managing a karting league across years, seasons, rounds, and race classes.
 

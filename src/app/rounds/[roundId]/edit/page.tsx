@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { saveRoundLeague, updateRoundMeta } from "@/app/actions";
-import { LeagueType } from "@/generated/prisma/enums";
+import { LeagueType, RaceDay } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import { formatMs } from "@/lib/scoring";
 
@@ -10,6 +10,12 @@ const LEAGUE_LABELS: Record<LeagueType, string> = {
   [LeagueType.JUNIORS]: "Juniors",
   [LeagueType.ADULT_AMATEUR]: "Adults - Amateur",
   [LeagueType.ADULT_PRO]: "Adults - Pro",
+};
+
+const DAY_LABELS: Record<RaceDay, string> = {
+  [RaceDay.TUESDAY]: "Tuesday",
+  [RaceDay.WEDNESDAY]: "Wednesday",
+  [RaceDay.THURSDAY]: "Thursday",
 };
 
 type EditRoundProps = {
@@ -37,10 +43,23 @@ function normalizeLeague(value: string | undefined): LeagueType {
   return LeagueType.ADULT_AMATEUR;
 }
 
+function normalizeDay(value: string | undefined): RaceDay {
+  if (!value) {
+    return RaceDay.TUESDAY;
+  }
+
+  if (Object.values(RaceDay).includes(value as RaceDay)) {
+    return value as RaceDay;
+  }
+
+  return RaceDay.TUESDAY;
+}
+
 export default async function EditRoundPage({ params, searchParams }: EditRoundProps) {
   const { roundId } = await params;
   const resolved = (await searchParams) ?? {};
   const selectedLeague = normalizeLeague(getValue(resolved.league));
+  const selectedDay = normalizeDay(getValue(resolved.day));
 
   const [round, drivers] = await Promise.all([
     prisma.round.findUnique({
@@ -52,7 +71,10 @@ export default async function EditRoundPage({ params, searchParams }: EditRoundP
           },
         },
         results: {
-          where: { leagueType: selectedLeague },
+          where: {
+            leagueType: selectedLeague,
+            raceDay: selectedDay,
+          },
         },
       },
     }),
@@ -110,13 +132,26 @@ export default async function EditRoundPage({ params, searchParams }: EditRoundP
               ))}
             </select>
           </label>
+          <label>
+            Day
+            <select name="day" defaultValue={selectedDay}>
+              {Object.values(RaceDay).map((day) => (
+                <option value={day} key={day}>
+                  {DAY_LABELS[day]}
+                </option>
+              ))}
+            </select>
+          </label>
           <button type="submit">Switch League</button>
         </form>
 
-        <h2>{LEAGUE_LABELS[selectedLeague]}</h2>
+        <h2>
+          {LEAGUE_LABELS[selectedLeague]} - {DAY_LABELS[selectedDay]}
+        </h2>
         <form action={saveRoundLeague} className="stack-sm">
           <input type="hidden" name="roundId" value={round.id} />
           <input type="hidden" name="leagueType" value={selectedLeague} />
+          <input type="hidden" name="raceDay" value={selectedDay} />
 
           <div className="table-wrap">
             <table>

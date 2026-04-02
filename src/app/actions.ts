@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { LeagueType } from "@/generated/prisma/enums";
+import { LeagueType, RaceDay } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import { parseLapToMs } from "@/lib/scoring";
 
@@ -20,9 +20,9 @@ function parseInteger(value: FormDataEntryValue | null): number | null {
   return parsed;
 }
 
-async function refreshBestLapBonus(roundId: string, leagueType: LeagueType) {
+async function refreshBestLapBonus(roundId: string, leagueType: LeagueType, raceDay: RaceDay) {
   await prisma.result.updateMany({
-    where: { roundId, leagueType },
+    where: { roundId, leagueType, raceDay },
     data: { bestLapBonus: false },
   });
 
@@ -30,6 +30,7 @@ async function refreshBestLapBonus(roundId: string, leagueType: LeagueType) {
     where: {
       roundId,
       leagueType,
+      raceDay,
       fastestLapMs: { not: null },
     },
     orderBy: { fastestLapMs: "asc" },
@@ -44,6 +45,7 @@ async function refreshBestLapBonus(roundId: string, leagueType: LeagueType) {
     where: {
       roundId,
       leagueType,
+      raceDay,
       fastestLapMs: fastest.fastestLapMs,
     },
     data: { bestLapBonus: true },
@@ -64,15 +66,36 @@ export async function createLeagueYear(formData: FormData) {
     await prisma.leagueYear.create({
       data: {
         label: year,
-        seasons: {
-          create: [1, 2, 3, 4].map((number) => ({
-            number,
-            name: `Season ${number}`,
-          })),
-        },
       },
     });
   }
+
+  revalidatePath("/");
+}
+
+export async function createSeason(formData: FormData) {
+  const yearId = String(formData.get("yearId") ?? "");
+  const seasonName = String(formData.get("seasonName") ?? "").trim();
+
+  if (!yearId || !seasonName) {
+    return;
+  }
+
+  const latestSeason = await prisma.season.findFirst({
+    where: { yearId },
+    orderBy: { number: "desc" },
+    select: { number: true },
+  });
+
+  const nextNumber = (latestSeason?.number ?? 0) + 1;
+
+  await prisma.season.create({
+    data: {
+      yearId,
+      number: nextNumber,
+      name: seasonName,
+    },
+  });
 
   revalidatePath("/");
 }
@@ -108,6 +131,16 @@ export async function createRound(formData: FormData) {
   redirect(`/rounds/${round.id}/edit`);
 }
 
+export async function deleteRound(formData: FormData) {
+  const roundId = String(formData.get("roundId") ?? "");
+  if (!roundId) {
+    return;
+  }
+
+  await prisma.round.delete({ where: { id: roundId } });
+  revalidatePath("/");
+}
+
 export async function updateRoundMeta(formData: FormData) {
   const roundId = String(formData.get("roundId") ?? "");
   const roundNumber = parseInteger(formData.get("roundNumber"));
@@ -135,8 +168,13 @@ export async function updateRoundMeta(formData: FormData) {
 export async function saveRoundLeague(formData: FormData) {
   const roundId = String(formData.get("roundId") ?? "");
   const leagueType = String(formData.get("leagueType") ?? "") as LeagueType;
+  const raceDay = String(formData.get("raceDay") ?? "") as RaceDay;
 
-  if (!roundId || !Object.values(LeagueType).includes(leagueType)) {
+  if (
+    !roundId ||
+    !Object.values(LeagueType).includes(leagueType) ||
+    !Object.values(RaceDay).includes(raceDay)
+  ) {
     return;
   }
 
@@ -152,10 +190,11 @@ export async function saveRoundLeague(formData: FormData) {
 
     const existing = await prisma.result.findUnique({
       where: {
-        roundId_driverId_leagueType: {
+        roundId_driverId_leagueType_raceDay: {
           roundId,
           driverId: driver.id,
           leagueType,
+          raceDay,
         },
       },
       select: { id: true },
@@ -174,16 +213,18 @@ export async function saveRoundLeague(formData: FormData) {
 
     await prisma.result.upsert({
       where: {
-        roundId_driverId_leagueType: {
+        roundId_driverId_leagueType_raceDay: {
           roundId,
           driverId: driver.id,
           leagueType,
+          raceDay,
         },
       },
       create: {
         roundId,
         driverId: driver.id,
         leagueType,
+        raceDay,
         position,
         pointsEarned,
         flatTimes,
@@ -220,16 +261,18 @@ export async function saveRoundLeague(formData: FormData) {
 
     await prisma.result.upsert({
       where: {
-        roundId_driverId_leagueType: {
+        roundId_driverId_leagueType_raceDay: {
           roundId,
           driverId: driver.id,
           leagueType,
+          raceDay,
         },
       },
       create: {
         roundId,
         driverId: driver.id,
         leagueType,
+        raceDay,
         position,
         pointsEarned,
         flatTimes,
@@ -244,7 +287,7 @@ export async function saveRoundLeague(formData: FormData) {
     });
   }
 
-  await refreshBestLapBonus(roundId, leagueType);
+  await refreshBestLapBonus(roundId, leagueType, raceDay);
 
   revalidatePath(`/rounds/${roundId}`);
   revalidatePath(`/rounds/${roundId}/edit`);

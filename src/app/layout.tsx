@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Sora } from "next/font/google";
+import ThemeToggle from "@/components/theme-toggle";
 import "./globals.css";
 
 const headingFont = Sora({
@@ -13,7 +14,7 @@ const bodyFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Kart Madness League Tracker",
+  title: "Karting Madness League Tracker",
   description: "League standings, rounds, and race result tracking for karting competitions.",
 };
 
@@ -24,7 +25,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${headingFont.variable} ${bodyFont.variable}`}>
-      <body>{children}</body>
+      <body>
+        <div className="page-theme-toggle">
+          <ThemeToggle />
+        </div>
+        {children}
+      </body>
     </html>
   );
 }

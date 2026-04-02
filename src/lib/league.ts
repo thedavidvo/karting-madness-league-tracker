@@ -1,4 +1,4 @@
-import { LeagueType } from "@/generated/prisma/enums";
+import { LeagueType, RaceDay } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import { totalPoints } from "@/lib/scoring";
 
@@ -6,6 +6,8 @@ type SearchOptions = {
   year?: string;
   season?: string;
   league?: string;
+  day?: string;
+  round?: string;
 };
 
 type RoundCell = {
@@ -21,6 +23,9 @@ type StandingsRow = {
 };
 
 const LEAGUE_VALUES = new Set(Object.values(LeagueType));
+const DAY_VALUES = new Set(Object.values(RaceDay));
+
+export type DayFilter = RaceDay;
 
 export function getLeagueType(value?: string): LeagueType {
   if (!value) {
@@ -30,6 +35,14 @@ export function getLeagueType(value?: string): LeagueType {
   return LEAGUE_VALUES.has(value as LeagueType)
     ? (value as LeagueType)
     : LeagueType.ADULT_AMATEUR;
+}
+
+export function getDayFilter(value?: string): DayFilter {
+  if (!value) {
+    return RaceDay.TUESDAY;
+  }
+
+  return DAY_VALUES.has(value as RaceDay) ? (value as RaceDay) : RaceDay.TUESDAY;
 }
 
 export async function getDashboardData(search: SearchOptions) {
@@ -52,6 +65,7 @@ export async function getDashboardData(search: SearchOptions) {
       seasons.find((season) => season.id === search.season) ?? seasons[0] ?? null;
 
     const selectedLeague = getLeagueType(search.league);
+    const selectedDay = getDayFilter(search.day);
 
     if (!selectedSeason) {
       return {
@@ -60,7 +74,9 @@ export async function getDashboardData(search: SearchOptions) {
         selectedYear,
         selectedSeason,
         selectedLeague,
+        selectedDay,
         rounds: [],
+        selectedRound: null,
         standings: [] as StandingsRow[],
         dbError: null as string | null,
       };
@@ -71,11 +87,17 @@ export async function getDashboardData(search: SearchOptions) {
       orderBy: { roundNumber: "asc" },
       include: {
         results: {
-          where: { leagueType: selectedLeague },
+          where: {
+            leagueType: selectedLeague,
+            raceDay: selectedDay,
+          },
+          orderBy: { position: "asc" },
           include: { driver: true },
         },
       },
     });
+
+    const selectedRound = rounds.find((round) => round.id === search.round) ?? rounds[0] ?? null;
 
     const byDriver = new Map<string, StandingsRow>();
 
@@ -113,7 +135,9 @@ export async function getDashboardData(search: SearchOptions) {
       selectedYear,
       selectedSeason,
       selectedLeague,
+      selectedDay,
       rounds,
+      selectedRound,
       standings,
       dbError: null as string | null,
     };
@@ -124,7 +148,9 @@ export async function getDashboardData(search: SearchOptions) {
       selectedYear: null,
       selectedSeason: null,
       selectedLeague: getLeagueType(search.league),
+      selectedDay: getDayFilter(search.day),
       rounds: [],
+      selectedRound: null,
       standings: [] as StandingsRow[],
       dbError:
         "Database connection failed. Set DATABASE_URL in .env to your Neon Postgres connection string and restart npm run dev.",
