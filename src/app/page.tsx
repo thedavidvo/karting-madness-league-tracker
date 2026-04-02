@@ -4,6 +4,7 @@ import Link from "next/link";
 import LeagueControlsPanel from "@/components/league-controls-panel";
 import RoundsPanel from "@/components/rounds-panel";
 import { LeagueType, RaceDay } from "@/generated/prisma/enums";
+import { requireAuth } from "@/lib/auth";
 import { getDashboardData } from "@/lib/league";
 
 type HomeProps = {
@@ -31,6 +32,8 @@ const DAY_LABELS: Record<RaceDay, string> = {
 };
 
 export default async function Home({ searchParams }: HomeProps) {
+  await requireAuth();
+
   const resolved = (await searchParams) ?? {};
   const data = await getDashboardData({
     year: getValue(resolved.year),

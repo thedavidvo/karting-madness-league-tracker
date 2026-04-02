@@ -26,6 +26,7 @@ type RoundResultsEditorProps = {
   raceDay: RaceDay;
   allDrivers: DriverOption[];
   existingResults: ExistingResult[];
+  saveSucceeded?: boolean;
 };
 
 export default function RoundResultsEditor({
@@ -34,14 +35,33 @@ export default function RoundResultsEditor({
   raceDay,
   allDrivers,
   existingResults,
+  saveSucceeded = false,
 }: RoundResultsEditorProps) {
   const [newDriverRows, setNewDriverRows] = useState([0]);
   const [nextRowId, setNextRowId] = useState(1);
   const [removedExistingDriverIds, setRemovedExistingDriverIds] = useState<string[]>([]);
   const [addedDriverIds, setAddedDriverIds] = useState<string[]>([]);
+  const [addedDriverDefaultPositions, setAddedDriverDefaultPositions] = useState<Record<string, number>>({});
   const [driverSearch, setDriverSearch] = useState("");
 
   const existingDriverIds = existingResults.map((result) => result.driverId);
+
+  const visibleExistingResults = useMemo(
+    () => existingResults.filter((result) => !removedExistingDriverIds.includes(result.driverId)),
+    [existingResults, removedExistingDriverIds],
+  );
+
+  const existingResultsByPosition = useMemo(
+    () =>
+      [...visibleExistingResults].sort((a, b) => {
+        if (a.position === b.position) {
+          return a.driverName.localeCompare(b.driverName);
+        }
+
+        return a.position - b.position;
+      }),
+    [visibleExistingResults],
+  );
 
   const filteredDrivers = useMemo(() => {
     const query = driverSearch.trim().toLowerCase();
@@ -82,6 +102,25 @@ export default function RoundResultsEditor({
       return;
     }
 
+    const usedPositions = [
+      ...visibleExistingResults.map((result) => result.position),
+      ...addedDriverIds
+        .map((id) => addedDriverDefaultPositions[id])
+        .filter((position): position is number => typeof position === "number"),
+    ];
+    const nextPosition = (usedPositions.length === 0 ? 0 : Math.max(...usedPositions)) + 1;
+
+    setAddedDriverDefaultPositions((current) => {
+      if (typeof current[driverId] === "number") {
+        return current;
+      }
+
+      return {
+        ...current,
+        [driverId]: nextPosition,
+      };
+    });
+
     setAddedDriverIds((current) => {
       if (current.includes(driverId)) {
         return current;
@@ -93,6 +132,15 @@ export default function RoundResultsEditor({
 
   const removeAddedDriver = (driverId: string) => {
     setAddedDriverIds((current) => current.filter((id) => id !== driverId));
+    setAddedDriverDefaultPositions((current) => {
+      if (!(driverId in current)) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[driverId];
+      return next;
+    });
   };
 
   return (
@@ -125,10 +173,10 @@ export default function RoundResultsEditor({
 
                 return (
                   <div className="driver-list-item" key={driver.id}>
-                    <span className="small">{driver.name}</span>
+                    <span className="small driver-name">{driver.name}</span>
                     <button
                       type="button"
-                      className="small-button"
+                      className="small-button driver-add-button"
                       onClick={() => addDriverToResults(driver.id)}
                       disabled={inList}
                     >
@@ -154,9 +202,7 @@ export default function RoundResultsEditor({
               </tr>
             </thead>
             <tbody>
-              {existingResults
-                .filter((result) => !removedExistingDriverIds.includes(result.driverId))
-                .map((result) => {
+              {existingResultsByPosition.map((result) => {
                   return (
                     <tr key={result.driverId}>
                       <td>{result.driverName}</td>
@@ -195,9 +241,7 @@ export default function RoundResultsEditor({
                   );
                 })}
 
-              {addedDriverIds
-                .filter((driverId) => !existingDriverIds.includes(driverId))
-                .map((driverId) => {
+              {addedDriverIds.filter((driverId) => !existingDriverIds.includes(driverId)).map((driverId) => {
                 const driver = allDrivers.find((item) => item.id === driverId);
                 if (!driver) {
                   return null;
@@ -207,7 +251,12 @@ export default function RoundResultsEditor({
                   <tr key={`added-${driverId}`}>
                     <td>{driver.name}</td>
                     <td>
-                      <input type="number" min={1} name={`entry_${driverId}_position`} />
+                      <input
+                        type="number"
+                        min={1}
+                        name={`entry_${driverId}_position`}
+                        defaultValue={addedDriverDefaultPositions[driverId]}
+                      />
                     </td>
                     <td>
                       <input type="number" min={0} name={`entry_${driverId}_points`} />
@@ -260,9 +309,16 @@ export default function RoundResultsEditor({
         <button type="button" className="small-button" onClick={addNewDriverRow}>
           Add Driver
         </button>
-        <button type="submit" className="small-button">
-          Save League Results
-        </button>
+        <div className="save-submit-wrap">
+          <button type="submit" className="small-button">
+            Save League Results
+          </button>
+          {saveSucceeded ? (
+            <span className="save-success-tick" aria-label="Results saved" title="Saved">
+              {"\u2713"}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <p className="small muted">

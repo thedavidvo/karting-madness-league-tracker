@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { createRound } from "@/app/actions";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 type NewRoundProps = {
@@ -16,6 +17,8 @@ function getValue(value: string | string[] | undefined): string | undefined {
 }
 
 export default async function NewRoundPage({ searchParams }: NewRoundProps) {
+  await requireAuth();
+
   const resolved = (await searchParams) ?? {};
   const seasonId = getValue(resolved.seasonId);
 

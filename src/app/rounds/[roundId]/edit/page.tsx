@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { updateRoundMeta } from "@/app/actions";
 import RoundResultsEditor from "@/components/round-results-editor";
 import { LeagueType, RaceDay } from "@/generated/prisma/enums";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 type EditRoundProps = {
@@ -44,10 +45,15 @@ function normalizeDay(value: string | undefined): RaceDay {
 }
 
 export default async function EditRoundPage({ params, searchParams }: EditRoundProps) {
+  await requireAuth();
+
   const { roundId } = await params;
   const resolved = (await searchParams) ?? {};
   const selectedLeague = normalizeLeague(getValue(resolved.league));
   const selectedDay = normalizeDay(getValue(resolved.day));
+  const saved = getValue(resolved.saved);
+  const detailsSaved = saved === "details";
+  const resultsSaved = saved === "results";
 
   const [round, allDrivers] = await Promise.all([
     prisma.round.findUnique({
@@ -62,6 +68,9 @@ export default async function EditRoundPage({ params, searchParams }: EditRoundP
           where: {
             leagueType: selectedLeague,
             raceDay: selectedDay,
+          },
+          orderBy: {
+            position: "asc",
           },
           include: {
             driver: true,
@@ -95,6 +104,8 @@ export default async function EditRoundPage({ params, searchParams }: EditRoundP
 
         <form action={updateRoundMeta} className="grid two">
           <input type="hidden" name="roundId" value={round.id} />
+          <input type="hidden" name="leagueType" value={selectedLeague} />
+          <input type="hidden" name="raceDay" value={selectedDay} />
           <label>
             Round Number
             <input name="roundNumber" defaultValue={round.roundNumber} type="number" min={1} required />
@@ -111,9 +122,16 @@ export default async function EditRoundPage({ params, searchParams }: EditRoundP
             Notes
             <textarea name="notes" rows={3} defaultValue={round.notes ?? ""} />
           </label>
-          <button className="full small-button" type="submit">
-            Save Round Details
-          </button>
+          <div className="full save-submit-wrap">
+            <button className="small-button" type="submit">
+              Save Round Details
+            </button>
+            {detailsSaved ? (
+              <span className="save-success-tick" aria-label="Round details saved" title="Saved">
+                {"\u2713"}
+              </span>
+            ) : null}
+          </div>
         </form>
       </section>
 
@@ -131,6 +149,7 @@ export default async function EditRoundPage({ params, searchParams }: EditRoundP
             flatTimes: result.flatTimes,
             fastestLapMs: result.fastestLapMs,
           }))}
+          saveSucceeded={resultsSaved}
         />
 
         <div className="split-links">

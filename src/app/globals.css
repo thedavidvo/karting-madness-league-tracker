@@ -45,17 +45,34 @@ body {
   margin: 0;
   color: var(--ink);
   font-family: var(--font-body), sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   background:
     radial-gradient(90rem 35rem at 10% -10%, var(--bg-grad-1) 0%, transparent 55%),
     radial-gradient(70rem 32rem at 100% 0%, var(--bg-grad-2) 0%, transparent 50%),
     var(--bg);
 }
 
-.page-theme-toggle {
+.page-content {
+  flex: 1;
+}
+
+.page-signature {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  padding: 0.35rem 1rem 0.7rem;
+}
+
+.page-header-controls {
   position: fixed;
   top: 0.9rem;
   right: 1rem;
   z-index: 10080;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
 }
 
 .hero-logo-link {
@@ -156,7 +173,7 @@ button:hover,
 
 .container {
   width: min(1680px, calc(100% - 2rem));
-  margin: 2rem auto 3rem;
+  margin: 2rem auto 1rem;
   display: grid;
   gap: 1rem;
 }
@@ -370,17 +387,56 @@ button:hover,
   gap: 0.45rem;
   max-height: 26rem;
   overflow: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in hsl, var(--muted) 45%, transparent) transparent;
+}
+
+.driver-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.driver-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.driver-list::-webkit-scrollbar-thumb {
+  background: color-mix(in hsl, var(--muted) 38%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.driver-list::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in hsl, var(--muted) 60%, transparent);
 }
 
 .driver-list-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 0.5rem;
   border: 1px solid var(--line);
   border-radius: 0.55rem;
   padding: 0.3rem 0.4rem;
   background: color-mix(in hsl, var(--surface) 76%, #0b1016);
+}
+
+.driver-list-item .driver-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.driver-list-item .small-button {
+  flex: 0 0 auto;
+}
+
+.driver-list-item .driver-add-button {
+  min-width: 3.4rem;
+  text-align: center;
 }
 
 table {
@@ -483,6 +539,28 @@ tr:hover td {
   flex-wrap: wrap;
 }
 
+.login-page-shell {
+  min-height: calc(100vh - 4rem);
+  display: grid;
+  place-items: center;
+}
+
+.login-card {
+  width: min(560px, 100%);
+}
+
+.save-submit-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.save-success-tick {
+  color: var(--success);
+  font-weight: 800;
+  font-size: 1rem;
+}
+
 .full {
   grid-column: 1 / -1;
 }
@@ -492,7 +570,7 @@ tr:hover td {
     color-scheme: light;
   }
 
-  .page-theme-toggle {
+  .page-header-controls {
     top: 0.6rem;
     right: 0.6rem;
   }

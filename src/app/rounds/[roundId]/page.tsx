@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { LeagueType, RaceDay } from "@/generated/prisma/enums";
+import { requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatMs, totalPoints } from "@/lib/scoring";
 
@@ -44,6 +45,8 @@ export default async function RoundPage({
   params: Promise<{ roundId: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAuth();
+
   const { roundId } = await params;
   const resolved = (await searchParams) ?? {};
   const selectedLeague = getLeagueType(Array.isArray(resolved.league) ? resolved.league[0] : resolved.league);

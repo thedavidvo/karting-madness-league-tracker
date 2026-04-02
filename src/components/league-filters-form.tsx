@@ -26,6 +26,7 @@ type LeagueFiltersFormProps = {
   selectedDay: string;
   leagueOptions: Option[];
   dayOptions: Option[];
+  actionPath?: string;
 };
 
 export default function LeagueFiltersForm(props: LeagueFiltersFormProps) {
@@ -36,7 +37,7 @@ export default function LeagueFiltersForm(props: LeagueFiltersFormProps) {
   };
 
   return (
-    <form action="/" method="get" className="stack-sm" ref={formRef}>
+    <form action={props.actionPath ?? "/"} method="get" className="stack-sm" ref={formRef}>
       <label>
         View Year
         <select name="year" defaultValue={props.selectedYear ?? ""} onChange={submitFilters}>

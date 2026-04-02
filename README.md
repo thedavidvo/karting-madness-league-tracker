@@ -45,7 +45,13 @@ copy .env.example .env
 
 ```env
 DATABASE_URL="postgresql://user:password@ep-xxxx.us-east-2.aws.neon.tech/karting_league?sslmode=require"
+DASHBOARD_USERNAME="admin"
+DASHBOARD_PASSWORD="change-me"
+# Optional but recommended for stable signed sessions across credential changes:
+# DASHBOARD_AUTH_SECRET="a-long-random-secret"
 ```
+
+Dashboard access now requires a login at `/login` and uses the credentials above.
 
 4. Apply schema to Neon
 

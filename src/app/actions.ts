@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { LeagueType, RaceDay } from "@/generated/prisma/enums";
+import { loginWithCredentials, logoutSession, requireAuth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { parseLapToMs } from "@/lib/scoring";
 
@@ -60,6 +61,8 @@ async function refreshBestLapBonus(roundId: string, leagueType: LeagueType, race
 }
 
 export async function createLeagueYear(formData: FormData) {
+  await requireAuth();
+
   const year = parseInteger(formData.get("year"));
   if (!year) {
     return;
@@ -81,6 +84,8 @@ export async function createLeagueYear(formData: FormData) {
 }
 
 export async function createSeason(formData: FormData) {
+  await requireAuth();
+
   const yearId = String(formData.get("yearId") ?? "");
   const seasonName = String(formData.get("seasonName") ?? "").trim();
 
@@ -107,7 +112,33 @@ export async function createSeason(formData: FormData) {
   revalidateDashboardData();
 }
 
+export async function deleteLeagueYear(formData: FormData) {
+  await requireAuth();
+
+  const yearId = String(formData.get("yearId") ?? "");
+  if (!yearId) {
+    return;
+  }
+
+  await prisma.leagueYear.deleteMany({ where: { id: yearId } });
+  revalidateDashboardData();
+}
+
+export async function deleteSeason(formData: FormData) {
+  await requireAuth();
+
+  const seasonId = String(formData.get("seasonId") ?? "");
+  if (!seasonId) {
+    return;
+  }
+
+  await prisma.season.deleteMany({ where: { id: seasonId } });
+  revalidateDashboardData();
+}
+
 export async function createRound(formData: FormData) {
+  await requireAuth();
+
   const seasonId = String(formData.get("seasonId") ?? "");
   const roundNumber = parseInteger(formData.get("roundNumber"));
   const weekStarting = String(formData.get("weekStarting") ?? "").trim();
@@ -149,6 +180,8 @@ export async function createRound(formData: FormData) {
 }
 
 export async function deleteRound(formData: FormData) {
+  await requireAuth();
+
   const roundId = String(formData.get("roundId") ?? "");
   if (!roundId) {
     return;
@@ -159,14 +192,26 @@ export async function deleteRound(formData: FormData) {
 }
 
 export async function updateRoundMeta(formData: FormData) {
+  await requireAuth();
+
   const roundId = String(formData.get("roundId") ?? "");
   const roundNumber = parseInteger(formData.get("roundNumber"));
   const weekStarting = String(formData.get("weekStarting") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  const leagueTypeRaw = String(formData.get("leagueType") ?? "");
+  const raceDayRaw = String(formData.get("raceDay") ?? "");
 
   if (!roundId || !roundNumber) {
     return;
   }
+
+  const leagueType = Object.values(LeagueType).includes(leagueTypeRaw as LeagueType)
+    ? (leagueTypeRaw as LeagueType)
+    : LeagueType.ADULT_AMATEUR;
+
+  const raceDay = Object.values(RaceDay).includes(raceDayRaw as RaceDay)
+    ? (raceDayRaw as RaceDay)
+    : RaceDay.TUESDAY;
 
   await prisma.round.update({
     where: { id: roundId },
@@ -180,9 +225,12 @@ export async function updateRoundMeta(formData: FormData) {
   revalidatePath(`/rounds/${roundId}`);
   revalidatePath(`/rounds/${roundId}/edit`);
   revalidateDashboardData();
+  redirect(`/rounds/${roundId}/edit?league=${leagueType}&day=${raceDay}&saved=details`);
 }
 
 export async function saveRoundLeague(formData: FormData) {
+  await requireAuth();
+
   const roundId = String(formData.get("roundId") ?? "");
   const leagueType = String(formData.get("leagueType") ?? "") as LeagueType;
   const raceDay = String(formData.get("raceDay") ?? "") as RaceDay;
@@ -312,4 +360,24 @@ export async function saveRoundLeague(formData: FormData) {
   revalidatePath(`/rounds/${roundId}`);
   revalidatePath(`/rounds/${roundId}/edit`);
   revalidateDashboardData();
+  redirect(`/rounds/${roundId}/edit?league=${leagueType}&day=${raceDay}&saved=results`);
+}
+
+export async function login(formData: FormData) {
+  const username = String(formData.get("username") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
+
+  const result = await loginWithCredentials(username, password);
+
+  if (!result.ok) {
+    const reason = result.reason ?? "invalid-credentials";
+    redirect(`/login?error=${reason}`);
+  }
+
+  redirect("/");
+}
+
+export async function logout() {
+  await logoutSession();
+  redirect("/login");
 }

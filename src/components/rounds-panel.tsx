@@ -51,6 +51,18 @@ export default function RoundsPanel({
     [rounds, selectedRoundId],
   );
 
+  const selectedRoundResults = useMemo(
+    () =>
+      [...(selectedRound?.results ?? [])].sort((a, b) => {
+        if (a.position === b.position) {
+          return a.driverName.localeCompare(b.driverName);
+        }
+
+        return a.position - b.position;
+      }),
+    [selectedRound],
+  );
+
   return (
     <>
       <section className="card stack-sm">
@@ -131,14 +143,14 @@ export default function RoundsPanel({
                 </tr>
               </thead>
               <tbody>
-                {selectedRound.results.length === 0 ? (
+                {selectedRoundResults.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="muted">
                       No results entered for this league/day.
                     </td>
                   </tr>
                 ) : (
-                  selectedRound.results.map((result) => (
+                  selectedRoundResults.map((result) => (
                     <tr key={result.id}>
                       <td>{result.position}</td>
                       <td>{result.driverName}</td>
