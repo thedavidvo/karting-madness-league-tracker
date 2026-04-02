@@ -144,7 +144,7 @@ export default function RoundsPanel({
                       <td>{result.driverName}</td>
                       <td>{result.pointsEarned}</td>
                       <td>{result.flatTimes}</td>
-                      <td>{result.bestLapBonus ? "+1" : "-"}</td>
+                      <td>{result.bestLapBonus ? "✓" : "-"}</td>
                       <td className="strong">{totalPoints(result.pointsEarned, result.flatTimes, result.bestLapBonus)}</td>
                       <td>{formatMs(result.fastestLapMs)}</td>
                     </tr>

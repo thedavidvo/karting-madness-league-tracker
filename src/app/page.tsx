@@ -140,7 +140,7 @@ export default async function Home({ searchParams }: HomeProps) {
                               return (
                                 <td key={round.id}>
                                   {cell ? (
-                                    <span className="small">{cell.points} pts (P{cell.position})</span>
+                                    <span className="small">{cell.points}</span>
                                   ) : (
                                     <span className="muted small">-</span>
                                   )}
