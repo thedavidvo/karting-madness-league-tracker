@@ -86,8 +86,12 @@ export default async function RoundPage({
         </p>
 
         <div className="split-links">
-          <Link href={`/rounds/${round.id}/edit?league=${selectedLeague}&day=${selectedDay}`}>Edit Round</Link>
-          <Link href="/">Back to Dashboard</Link>
+          <Link className="small-button" href={`/rounds/${round.id}/edit?league=${selectedLeague}&day=${selectedDay}`}>
+            Edit Round
+          </Link>
+          <Link className="small-button" href="/">
+            Back to Dashboard
+          </Link>
         </div>
       </section>
 

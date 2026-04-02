@@ -79,7 +79,7 @@ export default function LeagueControlsPanel(props: LeagueControlsPanelProps) {
               <input
                 name="seasonName"
                 type="text"
-                placeholder="Season 1"
+                placeholder="i.e. Winter"
                 required
                 disabled={props.years.length === 0 || !props.selectedYearId}
               />

@@ -1,4 +1,5 @@
 import { LeagueType, RaceDay } from "@/generated/prisma/enums";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { totalPoints } from "@/lib/scoring";
 
@@ -25,6 +26,46 @@ type StandingsRow = {
 const LEAGUE_VALUES = new Set(Object.values(LeagueType));
 const DAY_VALUES = new Set(Object.values(RaceDay));
 
+const getYearsAndSeasonsCached = unstable_cache(
+  async () =>
+    prisma.leagueYear.findMany({
+      orderBy: { label: "desc" },
+      include: {
+        seasons: {
+          orderBy: { number: "asc" },
+        },
+      },
+    }),
+  ["dashboard-years-and-seasons"],
+  {
+    revalidate: 60,
+    tags: ["dashboard-years", "dashboard-data"],
+  },
+);
+
+const getRoundsForFilterCached = unstable_cache(
+  async (seasonId: string, selectedLeague: LeagueType, selectedDay: RaceDay) =>
+    prisma.round.findMany({
+      where: { seasonId },
+      orderBy: { roundNumber: "asc" },
+      include: {
+        results: {
+          where: {
+            leagueType: selectedLeague,
+            raceDay: selectedDay,
+          },
+          orderBy: { position: "asc" },
+          include: { driver: true },
+        },
+      },
+    }),
+  ["dashboard-rounds-by-filter"],
+  {
+    revalidate: 15,
+    tags: ["dashboard-rounds", "dashboard-data"],
+  },
+);
+
 export type DayFilter = RaceDay;
 
 export function getLeagueType(value?: string): LeagueType {
@@ -47,14 +88,7 @@ export function getDayFilter(value?: string): DayFilter {
 
 export async function getDashboardData(search: SearchOptions) {
   try {
-    const years = await prisma.leagueYear.findMany({
-      orderBy: { label: "desc" },
-      include: {
-        seasons: {
-          orderBy: { number: "asc" },
-        },
-      },
-    });
+    const years = await getYearsAndSeasonsCached();
 
     const selectedYear =
       years.find((year) => String(year.label) === search.year) ?? years[0] ?? null;
@@ -82,20 +116,8 @@ export async function getDashboardData(search: SearchOptions) {
       };
     }
 
-    const rounds = await prisma.round.findMany({
-      where: { seasonId: selectedSeason.id },
-      orderBy: { roundNumber: "asc" },
-      include: {
-        results: {
-          where: {
-            leagueType: selectedLeague,
-            raceDay: selectedDay,
-          },
-          orderBy: { position: "asc" },
-          include: { driver: true },
-        },
-      },
-    });
+    const seasonRounds = await getRoundsForFilterCached(selectedSeason.id, selectedLeague, selectedDay);
+    const rounds = seasonRounds.filter((round) => round.results.length > 0);
 
     const selectedRound = rounds.find((round) => round.id === search.round) ?? rounds[0] ?? null;
 

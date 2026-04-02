@@ -115,7 +115,12 @@ input[type="date"] {
 
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
+  opacity: 1;
   cursor: pointer;
+}
+
+:root:not([data-theme="light"]) input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) invert(1);
 }
 
 button,
@@ -303,6 +308,18 @@ button:hover,
   gap: 1rem;
 }
 
+.title-with-back {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.back-arrow-button {
+  min-width: 2rem;
+  text-align: center;
+  padding: 0.25rem 0.55rem;
+}
+
 .round-dialog {
   border: 0;
   padding: 0;
@@ -330,6 +347,40 @@ button:hover,
   overflow: auto;
   border: 1px solid var(--line);
   border-radius: 0.8rem;
+}
+
+.results-editor-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.results-sidebar {
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  padding: 0.7rem;
+  background: color-mix(in hsl, var(--surface-2) 62%, #0b1016);
+  display: grid;
+  gap: 0.55rem;
+}
+
+.driver-list {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 26rem;
+  overflow: auto;
+}
+
+.driver-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  padding: 0.3rem 0.4rem;
+  background: color-mix(in hsl, var(--surface) 76%, #0b1016);
 }
 
 table {
@@ -398,6 +449,19 @@ tr:hover td {
   padding: 0.2rem 0;
 }
 
+.round-select-button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 0.4rem;
+}
+
+.round-select-button:hover {
+  transform: none;
+  filter: none;
+}
+
 .round-card-link:hover {
   transform: translateX(2px);
 }
@@ -439,6 +503,10 @@ tr:hover td {
   }
 
   .dashboard-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .results-editor-layout {
     grid-template-columns: 1fr;
   }
 

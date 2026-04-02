@@ -6,9 +6,11 @@ import { createRound } from "@/app/actions";
 
 type AddRoundDialogProps = {
   seasonId: string;
+  selectedLeague: string;
+  selectedDay: string;
 };
 
-export default function AddRoundDialog({ seasonId }: AddRoundDialogProps) {
+export default function AddRoundDialog({ seasonId, selectedLeague, selectedDay }: AddRoundDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const openDialog = () => {
@@ -30,6 +32,8 @@ export default function AddRoundDialog({ seasonId }: AddRoundDialogProps) {
           <h3 className="round-dialog-title">Add New Round</h3>
           <form action={createRound} className="stack-sm" onSubmit={closeDialog}>
             <input type="hidden" name="seasonId" value={seasonId} />
+            <input type="hidden" name="leagueType" value={selectedLeague} />
+            <input type="hidden" name="raceDay" value={selectedDay} />
             <label>
               Round Number
               <input name="roundNumber" type="number" min={1} max={52} required />
