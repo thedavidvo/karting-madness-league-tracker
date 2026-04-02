@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${headingFont.variable} ${bodyFont.variable}`}>
+    <html lang="en" className={`${headingFont.variable} ${bodyFont.variable}`} data-theme="dark">
       <body>
         <div className="page-theme-toggle">
           <ThemeToggle />
